@@ -1,10 +1,10 @@
 #include "pharmacy.h"
 
 
-Medicine::Medicine(const string& name, const string& brand, const string& expiryDate,
+Medicine::Medicine(const string& name, const string& brand, const string& expiryDate,int id,
                    float price, int quantity, int lowStockThreshold)
     : name(name), brand(brand), expiryDate(expiryDate), price(price),
-      quantity(quantity), lowStockThreshold(lowStockThreshold) {}
+      quantity(quantity), lowStockThreshold(lowStockThreshold) ,id(id){}
 
 bool Medicine::isLowStock() const {
     return quantity <= lowStockThreshold;
@@ -22,9 +22,9 @@ void Medicine::increaseQuantity(int qty) {
 
 
 
-Tablet::Tablet(const string& name, const string& brand, const string& expiryDate,
+Tablet::Tablet(const string& name, const string& brand, const string& expiryDate,int id,
                float price, int quantity, int lowStockThreshold, int dosage)
-    : Medicine(name, brand, expiryDate, price, quantity, lowStockThreshold), dosage(dosage) {}
+    : Medicine(name, brand, expiryDate,id, price, quantity, lowStockThreshold), dosage(dosage) {}
 
 string Tablet::getDetails() const {
     stringstream ss;
@@ -34,9 +34,9 @@ string Tablet::getDetails() const {
 }
 
 
-Syrup::Syrup(const string& name, const string& brand, const string& expiryDate,
+Syrup::Syrup(const string& name, const string& brand, const string& expiryDate,int id,
              float price, int quantity, int lowStockThreshold, int volume)
-    : Medicine(name, brand, expiryDate, price, quantity, lowStockThreshold), volume(volume) {}
+    : Medicine(name, brand, expiryDate,id, price, quantity, lowStockThreshold), volume(volume) {}
 
 string Syrup::getDetails() const {
     stringstream ss;
@@ -47,9 +47,9 @@ string Syrup::getDetails() const {
 
 
 
-Injection::Injection(const string& name, const string& brand, const string& expiryDate,
+Injection::Injection(const string& name, const string& brand, const string& expiryDate,int id,
                      float price, int quantity, int lowStockThreshold, int concentration)
-    : Medicine(name, brand, expiryDate, price, quantity, lowStockThreshold), concentration(concentration) {}
+    : Medicine(name, brand, expiryDate,id, price, quantity, lowStockThreshold), concentration(concentration) {}
 
 string Injection::getDetails() const {
     stringstream ss;
@@ -90,6 +90,17 @@ void Inventory::checkLowStock() const {
         }
     }
 }
+Medicine* Inventory::findMedicineByid(int id)
+{
+    for (auto med : medicines)
+    {
+        if (med->getId() == id)
+        {
+            return med;
+        }
+    }
+    return nullptr;
+}
 
 void Inventory::autoRestock(Supplier& supplier) {
     for (auto med : medicines) {
@@ -114,6 +125,26 @@ Supplier::Supplier(const string& name) : name(name) {}
 void Supplier::restockOnRequest(Medicine& med) {
     cout << "Restocking medicine: " << med.getName() << " by supplier " << name << endl;
     med.increaseQuantity(50); // Example: add 50 units
+}
+Sale Pharmacy::dispensePrescription(const Prescription& pres, Discount* discount)
+{
+    Sale sale(pres.getId(), discount);
+
+    for (auto* presMed : pres.getMedicines())
+    {
+        if (!presMed) continue;
+
+        Medicine* invMed = inventory.findMedicineByName(presMed->getName());
+        if (!invMed) continue;
+
+        if (invMed->getQuantity() > 0)
+        {
+            sale.addMedicine(invMed);
+            invMed->reduceQuantity(1);
+        }
+    }
+
+    return sale;
 }
 
 
@@ -158,17 +189,30 @@ float Sale::generateBill() const {
     return total;
 }
 
-void Sale::exportToJSON(const string& filePath) const {
-    ofstream file(filePath);
-    file << "{ \"SaleID\": " << id << ", \"Total\": " << generateBill() << " }";
-    file.close();
-}
+void Sale::exportToJSON(const string& filePath) const
+{
+    json j;
+    j["SaleID"] = id;
+    j["Medicines"] = json::array();
 
-void Sale::loadFromJSON(const string& filePath) {
-    ifstream file(filePath);
-    if (file.is_open()) {
-        cout << "Loaded sale from " << filePath << endl;
+    for (const auto& med : medicines)
+    {
+        json m;
+        m["Name"] = med->getName();
+        m["Price"] = med->getPrice();
+        j["Medicines"].push_back(m);
     }
+
+    j["DiscountApplied"] = (discount != nullptr);
+    j["Total"] = generateBill();
+
+    ofstream file(filePath);
+    if (!file)
+    {
+        cerr << "[Sale] Error: Cannot open file for writing: " << filePath << endl;
+        return;
+    }
+    file << j.dump(4);
 }
 
 

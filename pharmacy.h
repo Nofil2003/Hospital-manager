@@ -1,23 +1,28 @@
 #pragma once
 #include <iostream>
+#include <sstream>
 #include <vector>
 #include <fstream>
-#include <nlohmann/json.hpp>
+#include "nlohmann/json.hpp"
 using namespace std;
 using nlohmann::json;
 
-
+class Supplier;
+class Sale;
+class Prescription;
+class Pharmacy;
 class Medicine {
 protected:
     string name;
     string brand;
     string expiryDate;
+    int id;
     float price;
     int quantity;
     int lowStockThreshold;
 
 public:
-    Medicine(const string& name, const string& brand, const string& expiryDate,
+    Medicine(const string& name, const string& brand, const string& expiryDate,int id,
              float price, int quantity, int lowStockThreshold);
 
     virtual ~Medicine() {}
@@ -30,6 +35,7 @@ public:
     string getName() const { return name; }
     float getPrice() const { return price; }
     int getQuantity() const { return quantity; }
+    int getId() const { return id; }
 };
 
 
@@ -38,7 +44,7 @@ private:
     int dosage; // mg
 
 public:
-    Tablet(const string& name, const string& brand, const string& expiryDate,
+    Tablet(const string& name, const string& brand, const string& expiryDate,int id,
            float price, int quantity, int lowStockThreshold, int dosage);
 
     string getDetails() const override;
@@ -51,7 +57,7 @@ private:
     int volume; // ml
 
 public:
-    Syrup(const string& name, const string& brand, const string& expiryDate,
+    Syrup(const string& name, const string& brand, const string& expiryDate,int id,
           float price, int quantity, int lowStockThreshold, int volume);
 
     string getDetails() const override;
@@ -64,7 +70,7 @@ private:
     int concentration; // mg/ml
 
 public:
-    Injection(const string& name, const string& brand, const string& expiryDate,
+    Injection(const string& name, const string& brand, const string& expiryDate,int id,
               float price, int quantity, int lowStockThreshold, int concentration);
 
     string getDetails() const override;
@@ -108,6 +114,7 @@ public:
     void checkLowStock() const;
     void autoRestock(Supplier& supplier);
     Medicine* findMedicineByName(const string& name);
+    Medicine* findMedicineByid(int id);
     const vector<Medicine*>& getMedicines() const { return medicines; }
 };
 
@@ -128,6 +135,7 @@ private:
     vector<Supplier> suppliers;
 
 public:
+    Sale dispensePrescription(const Prescription& pres, Discount* discount = nullptr);
     void viewSalesReport() const;
     Inventory& getInventory() { return inventory; }
     void addSupplier(const Supplier& supplier);
@@ -145,6 +153,9 @@ public:
     Prescription(int id, const string& patientName);
     void addMedicine(Medicine* med);
     void printPrescription() const;
+    int getId() const { return id; }
+    const string& getPatientName() const { return patientName; }
+    const vector<Medicine*>& getMedicines() const { return prescribedMedicines; }
 };
 
 
@@ -155,6 +166,7 @@ private:
     Discount* discount;
 
 public:
+    int getId() const { return id; }
     Sale(int id, Discount* discount = nullptr);
     void addMedicine(Medicine* med);
     float generateBill() const;
